@@ -10,119 +10,194 @@ use Symfony\Component\DomCrawler\Crawler;
 class ScrapeArticles extends Command
 {
     protected $signature = 'scrape:articles';
-    protected $description = 'Scrape articles from BeyondChats blogs';
+    protected $description = 'Scrape the 5 oldest articles from BeyondChats blogs';
 
     public function handle()
     {
-        $this->info('Starting to scrape BeyondChats articles...');
-        
+        $this->info('Starting BeyondChats blog scraping...');
+
         $client = new Client([
             'verify' => false,
+            'timeout' => 30,
             'headers' => [
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             ]
         ]);
-        
+
         try {
-            // Fetch the blogs page
-            $response = $client->get('https://beyondchats.com/blogs/');
+            // STEP 1: Find the last page number
+            $this->info('Fetching blogs page to find last page...');
+            $response = $client->get('https://beyondchats.com/blogs');
             $html = $response->getBody()->getContents();
-            
             $crawler = new Crawler($html);
-            $articles = [];
-            
-            // Adjust these selectors based on actual HTML structure
-            // You may need to inspect the page and update selectors
-            $crawler->filter('article, .blog-item, .post-item, .card')->each(function (Crawler $node) use (&$articles) {
-                try {
-                    // Try different possible selectors
-                    $titleNode = $node->filter('h1, h2, h3, .title, .post-title')->first();
-                    $linkNode = $node->filter('a')->first();
-                    $excerptNode = $node->filter('p, .excerpt, .description')->first();
-                    $imageNode = $node->filter('img')->first();
-                    
-                    if ($titleNode->count() > 0 && $linkNode->count() > 0) {
-                        $url = $linkNode->attr('href');
-                        
-                        // Make URL absolute if it's relative
-                        if (!str_starts_with($url, 'http')) {
-                            $url = 'https://beyondchats.com' . $url;
-                        }
-                        
-                        $articles[] = [
-                            'title' => trim($titleNode->text()),
-                            'url' => $url,
-                            'excerpt' => $excerptNode->count() > 0 ? trim($excerptNode->text()) : '',
-                            'image_url' => $imageNode->count() > 0 ? $imageNode->attr('src') : '',
-                        ];
+
+            // Find last page from pagination (look for numeric page links)
+            $lastPage = 1;
+            $crawler->filter('.wp-pagenavi a, .pagination a')->each(function (Crawler $node) use (&$lastPage) {
+                $text = trim($node->text());
+                if (is_numeric($text)) {
+                    $pageNum = (int) $text;
+                    if ($pageNum > $lastPage) {
+                        $lastPage = $pageNum;
                     }
-                } catch (\Exception $e) {
-                    // Skip if elements not found
                 }
             });
+
+            $this->info("Last page detected: {$lastPage}");
+
+            // STEP 2: Fetch the last page
+            $lastPageUrl = "https://beyondchats.com/blogs/page/{$lastPage}/";
+            $this->info("Fetching articles from: {$lastPageUrl}");
             
-            if (empty($articles)) {
-                $this->error('No articles found. Please check the HTML structure and update selectors.');
-                return;
-            }
+            $response = $client->get($lastPageUrl);
+            $html = $response->getBody()->getContents();
+            $crawler = new Crawler($html);
+
+            // STEP 3: Extract article URLs from the last page
+            // The structure shows each article has a link with pattern /blogs/article-slug/
+            $articleLinks = [];
             
-            $this->info("Found " . count($articles) . " articles");
-            
-            // Get the last 5 (oldest) articles
-            $oldestArticles = array_slice($articles, -5);
-            
-            foreach ($oldestArticles as $articleData) {
-                // Fetch full content from article URL
-                try {
-                    $this->info("Scraping: {$articleData['url']}");
+            $crawler->filter('a')->each(function (Crawler $node) use (&$articleLinks) {
+                $href = $node->attr('href');
+                
+                // Match blog article URLs: /blogs/something-here/
+                if (preg_match('#/blogs/([a-z0-9-]+)/#', $href, $matches)) {
+                    $slug = $matches[1];
                     
-                    $response = $client->get($articleData['url']);
+                    // Skip pagination and category pages
+                    if (in_array($slug, ['page', 'tag', 'author', 'category'])) {
+                        return;
+                    }
+                    
+                    $url = $href;
+                    if (!str_starts_with($url, 'http')) {
+                        $url = 'https://beyondchats.com' . $url;
+                    }
+                    
+                    // Store unique URLs
+                    if (!in_array($url, $articleLinks)) {
+                        $articleLinks[] = $url;
+                    }
+                }
+            });
+
+            if (empty($articleLinks)) {
+                $this->error('No article links found on the last page.');
+                return Command::FAILURE;
+            }
+
+            $this->info("Found " . count($articleLinks) . " article links");
+
+            // STEP 4: Take first 5 articles
+            $articlesToScrape = array_slice($articleLinks, 0, 5);
+
+            // STEP 5: Scrape each article
+            foreach ($articlesToScrape as $index => $url) {
+                $this->info("");
+                $this->info("[" . ($index + 1) . "/5] Scraping: {$url}");
+
+                // Check if already exists
+                if (Article::where('url', $url)->exists()) {
+                    $this->warn("  Already exists in database, skipping...");
+                    continue;
+                }
+
+                try {
+                    // Fetch the article page
+                    $response = $client->get($url);
                     $articleHtml = $response->getBody()->getContents();
                     $articleCrawler = new Crawler($articleHtml);
-                    
-                    // Try common article content selectors
-                    $contentNode = null;
-                    $selectors = ['.article-content', '.post-content', '.entry-content', 'article .content', 'main article'];
-                    
-                    foreach ($selectors as $selector) {
-                        $node = $articleCrawler->filter($selector);
-                        if ($node->count() > 0) {
-                            $contentNode = $node->first();
+
+                    // Extract title
+                    $title = '';
+                    $titleSelectors = ['h1.entry-title', 'h1', '.post-title', 'article h1'];
+                    foreach ($titleSelectors as $selector) {
+                        $titleNode = $articleCrawler->filter($selector);
+                        if ($titleNode->count() > 0) {
+                            $title = trim($titleNode->first()->text());
                             break;
                         }
                     }
-                    
-                    $content = $contentNode ? $contentNode->html() : 'Content not available';
-                    
-                    // Check if article already exists
-                    $existingArticle = Article::where('url', $articleData['url'])->first();
-                    
-                    if (!$existingArticle) {
-                        Article::create([
-                            'title' => $articleData['title'],
-                            'content' => $content,
-                            'url' => $articleData['url'],
-                            'excerpt' => $articleData['excerpt'],
-                            'image_url' => $articleData['image_url'],
-                        ]);
-                        
-                        $this->info("✓ Scraped: {$articleData['title']}");
-                    } else {
-                        $this->warn("- Already exists: {$articleData['title']}");
+
+                    if (empty($title)) {
+                        $this->warn("  Could not find title, skipping...");
+                        continue;
                     }
-                    
+
+                    $this->info("  Title: {$title}");
+
+                    // Extract content
+                    $content = '';
+                    $contentSelectors = [
+                        '.entry-content',
+                        'article .content',
+                        '.post-content',
+                        '.article-content',
+                        'article',
+                    ];
+
+                    foreach ($contentSelectors as $selector) {
+                        $contentNode = $articleCrawler->filter($selector);
+                        if ($contentNode->count() > 0) {
+                            $content = $contentNode->first()->html();
+                            break;
+                        }
+                    }
+
+                    if (empty($content)) {
+                        $this->warn("  Could not extract content");
+                        $content = "Content not available";
+                    }
+
+                    // Extract excerpt
+                    $excerpt = '';
+                    $excerptNode = $articleCrawler->filter('.entry-content p, article p');
+                    if ($excerptNode->count() > 0) {
+                        $excerpt = trim($excerptNode->first()->text());
+                        // Limit excerpt length
+                        if (strlen($excerpt) > 200) {
+                            $excerpt = substr($excerpt, 0, 200) . '...';
+                        }
+                    }
+
+                    // Extract featured image
+                    $imageUrl = '';
+                    $imageNode = $articleCrawler->filter('.wp-post-image, .featured-image img, article img');
+                    if ($imageNode->count() > 0) {
+                        $imageUrl = $imageNode->first()->attr('src');
+                    }
+
+                    // Save to database
+                    Article::create([
+                        'title' => $title,
+                        'content' => $content,
+                        'url' => $url,
+                        'excerpt' => $excerpt,
+                        'image_url' => $imageUrl,
+                        'is_updated' => false,
+                    ]);
+
+                    $this->info("  ✓ Successfully saved!");
+
                     // Be polite - wait between requests
                     sleep(2);
-                    
+
                 } catch (\Exception $e) {
-                    $this->error("✗ Failed to scrape: {$articleData['url']} - " . $e->getMessage());
+                    $this->error("  ✗ Failed: " . $e->getMessage());
                 }
             }
+
+            $this->info("");
+            $this->info("========================================");
+            $this->info("Scraping completed successfully!");
+            $this->info("Total articles scraped: " . Article::where('is_updated', false)->count());
+            $this->info("========================================");
             
-            $this->info('Scraping completed!');
-            
+            return Command::SUCCESS;
+
         } catch (\Exception $e) {
-            $this->error('Error: ' . $e->getMessage());
+            $this->error('Fatal Error: ' . $e->getMessage());
+            return Command::FAILURE;
         }
     }
 }

@@ -6,7 +6,7 @@ function Header({ filter, onFilterChange, articleCount }) {
       <div className="header-content">
         <div className="header-top">
           <h1 className="logo">
-            <span className="logo-icon">📰</span>
+            <span className="logo-icon"></span>
             BeyondChats Articles
           </h1>
           <div className="article-count">
@@ -21,7 +21,7 @@ function Header({ filter, onFilterChange, articleCount }) {
           >
             All Articles
           </button>
-          <button
+          {/* <button
             className={`filter-btn ${filter === 'original' ? 'active' : ''}`}
             onClick={() => onFilterChange('original')}
           >
@@ -32,7 +32,7 @@ function Header({ filter, onFilterChange, articleCount }) {
             onClick={() => onFilterChange('updated')}
           >
             Updated Versions
-          </button>
+          </button> */}
         </nav>
       </div>
     </header>
