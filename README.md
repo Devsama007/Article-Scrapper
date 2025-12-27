@@ -21,7 +21,7 @@ Before you begin, ensure you have the following installed on your system:
 
 ### 1: PHP 8.2 or higher
 
-```json raw body
+```text
 # Check PHP version
    php -v
    
@@ -39,7 +39,7 @@ Before you begin, ensure you have the following installed on your system:
 
 ### 2: Composer (PHP Dependency Manager)
 
-```json raw body
+```text
 # Check Composer version
    composer --version
    
@@ -48,7 +48,7 @@ Before you begin, ensure you have the following installed on your system:
 
 ### 3: Node.js 18+ and npm
 
-```json raw body
+```text
 # Check Node.js version
    node -v
    
@@ -60,7 +60,7 @@ Before you begin, ensure you have the following installed on your system:
 
 ### 4: PostgreSQL 13+
 
-```json raw body
+```text
 # Check PostgreSQL version
    psql --version
    
@@ -69,13 +69,13 @@ Before you begin, ensure you have the following installed on your system:
 
 ### 5: Git (for cloning/managing code)
 
-```json raw body
+```text
 git --version
 ```
 
 # Project Structure
 
-```json raw body
+```text
 beyondchats-assignment/
 │
 ├── backend-laravel/              # Laravel Backend API
