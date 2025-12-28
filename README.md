@@ -3,15 +3,15 @@ A complete full-stack application that scrapes articles from BeyondChats blogs, 
 
 # Table of Contents
 
-•	Prerequisites 
-•	Project Structure 
-•	Phase 1: Laravel Backend Setup
-•	Phase 2: Node.js Article Updater Setup
-•	Phase 3: React Frontend Setup
-•	Running the Complete Application
-•	API Documentation
-•	Troubleshooting
-•	Features
+*	Prerequisites 
+*	Project Structure 
+*	Phase 1: Laravel Backend Setup
+*	Phase 2: Node.js Article Updater Setup
+*	Phase 3: React Frontend Setup
+*	Running the Complete Application
+*	API Documentation
+*	Troubleshooting
+*	Features
 
 
 # Prerequisites
@@ -150,11 +150,11 @@ GRANT ALL PRIVILEGES ON DATABASE beyondchats_db TO beyondchats_user;
 
 ### Option B: Using pgAdmin (GUI)
 
-•	Open pgAdmin
-•	Right-click on "Databases"
-•	Select "Create" → "Database"
-•	Enter name: beyondchats_db
-•	Click "Save"
+*	Open pgAdmin
+*	Right-click on "Databases"
+*	Select "Create" → "Database"
+*	Enter name: beyondchats_db
+*	Click "Save"
 
 ## Step 4: Configure Environment Variables
 
@@ -203,4 +203,96 @@ php artisan install:api
 # - Install Sanctum
 # - Publish Sanctum migrations
 ```
+
+## Step 7: Install API Support
+
+Create the following files with the provided code:
+
+### a. Create Article Model
+
+```text
+php artisan make:model Article
+```
+
+### b. Create Migration
+
+```text
+php artisan make:migration create_articles_table
+```
+
+### c. Create Scraper Command
+
+```text
+php artisan make:command ScrapeArticles
+```
+
+### d. Create API Controller
+
+```text
+php artisan make:controller Api/ArticleController --api
+```
+
+### e. Configure bootstrap/app.php
+
+## Step 8: Run Migrations
+
+```text
+php artisan migrate
+```
+
+If you encounter errors, try:
+```text
+php artisan migrate:fresh
+```
+
+## Step 9: Clear Caches
+
+```text
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan optimize:clear
+composer dump-autoload
+```
+
+## Step 10: Scrape Articles
+
+```text
+php artisan scrape:articles
+```
+This will scrape the 5 oldest articles from BeyondChats blog.
+
+## Step 11: Verify Articles Were Scraped
+
+```text
+# Check in database
+php artisan tinker
+
+# Inside tinker:
+Article::count();
+Article::all();
+exit
+```
+
+## Step 12: Start Laravel Server
+
+```text
+php artisan serve
+```
+The API will be available at: http://127.0.0.1:8000
+
+## Step 13: Test the API
+Open a new terminal and run or paste in browser:
+
+```text
+# Test health endpoint
+curl http://127.0.0.1:8000/api/health
+
+# Test articles endpoint
+curl http://127.0.0.1:8000/api/articles
+
+# Or open in browser:
+# http://127.0.0.1:8000/api/articles
+```
+
 
