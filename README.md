@@ -10,7 +10,6 @@ A complete full-stack application that scrapes articles from BeyondChats blogs, 
 *	Phase 3: React Frontend Setup
 *	Running the Complete Application
 *	API Documentation
-*	Troubleshooting
 *	Features
 
 
@@ -295,4 +294,257 @@ curl http://127.0.0.1:8000/api/articles
 # http://127.0.0.1:8000/api/articles
 ```
 
+
+ # Phase 2: Node.js Article Updater Setup
+
+ ## Step 1: Create Project Directory
+
+ ```text
+ # Go back to main project folder
+cd ..
+
+# Create article-updater folder
+mkdir article-updater
+cd article-updater
+```
+
+## Step 2: Initialize Node.js Project
+
+```text
+npm init -y
+```
+
+## Step 3: Install Dependencies
+
+```text
+npm install axios cheerio puppeteer @google/generative-ai dotenv
+```
+
+## Step 4: Get Gemini API Key
+
+*	Go to: https://makersuite.google.com/app/apikey
+*	Sign in with your Google account
+*	Click "Create API Key"
+*	Copy the generated API key
+
+## Step 5: Create .env File
+
+Create .env file in article-updater/:
+```text
+# Laravel API Configuration
+LARAVEL_API_URL=http://localhost:8000/api
+
+# Google Gemini API Key (Get from: https://makersuite.google.com/app/apikey)
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+**Important: Replace your_gemini_api_key_here with your actual Gemini API key!**
+
+## Step 6: Run the Script
+Make sure Laravel server is running, then:
+
+```text
+node index.js
+```
+
+The script will:
+
+*  Fetch the latest article from Laravel API
+*  Search Google for similar articles
+*  Scrape top 2 search results
+*  Use Gemini AI to rewrite the article
+*  Publish updated version back to Laravel API
+
+
+# Phase 3: React Frontend Setup
+
+## Step 1: Create React Project
+
+```text
+# Go back to main project folder
+cd ..
+
+# Create React project with Vite
+npm create vite@latest frontend-react -- --template react
+cd frontend-react
+```
+
+## Step 2: Install Dependencies
+
+```text
+npm install axios
+```
+
+## Step 3: Create Project Structure
+
+```text
+# Create directories
+mkdir src/components
+mkdir src/services
+```
+
+## Step 4: Create All React Files
+
+## Step 5: Create .env File
+
+Create .env in frontend-react/:
+
+```text
+VITE_API_URL=http://localhost:8000/api
+```
+
+## Step 6: Start Development Server
+
+```text
+npm run dev
+```
+The frontend will be available at: http://localhost:3000
+
+
+# Running the Complete Application
+
+## Terminal 1: Laravel Backend
+
+```text
+cd backend-laravel
+php artisan serve
+```
+Keep this running at http://127.0.0.1:8000
+
+## Terminal 2: React Frontend
+
+```text
+cd frontend-react
+npm run dev
+```
+Keep this running at http://localhost:3000
+
+## Terminal 3: Run Article Updater (When Needed)
+
+```text
+cd article-updater
+node index.js
+```
+This runs once and updates one article. You can run it multiple times.
+
+
+# API Documentation
+
+## Base URL
+
+```text
+http://localhost:8000/api
+```
+
+## Endpoints
+## 1. Get All Articles
+
+```text
+GET /api/articles
+```
+
+## 2. Get Single Article
+
+```text
+GET /api/articles/{id}
+```
+
+## 3. Create Article
+
+```text
+POST /api/articles
+Content-Type: application/json
+```
+
+```json raw body
+{
+  "title": "New Article",
+  "content": "<p>Content here</p>",
+  "url": "https://example.com",
+  "excerpt": "Summary",
+  "image_url": "https://example.com/img.jpg",
+  "is_updated": false
+}
+```
+
+## 4. Update Article
+
+```text
+PUT /api/articles/{id}
+Content-Type: application/json
+```
+
+```json raw body
+{
+  "title": "Updated Title"
+}
+```
+
+## 5. Delete Article
+
+```text
+DELETE /api/articles/{id}
+```
+
+## 6. Health Check
+
+```text
+GET /api/health
+```
+
+
+# Features
+
+### Backend (Laravel)
+
+*  Web scraping from BeyondChats blog
+*  Store articles in PostgreSQL database
+*  RESTful API with full CRUD operations
+*  Article relationships (original/updated versions)
+*  JSON reference storage
+*  Health check endpoint
+
+### Article Updater (Node.js)
+
+*  Automated Google search for similar articles
+*  Web scraping of top search results
+*  AI-powered content rewriting with Google Gemini
+*  Automatic reference citation
+*  Seamless API integration
+
+### Frontend (React)
+
+*  Modern, responsive UI
+*  Article listing with filters
+*  Detailed article view
+*  Original and updated article linking
+*  Reference display
+*  Loading states
+*  Error handling
+*  Professional design
+
+
+ # Usage Flow
+
+### Start Laravel Backend
+
+*  Scrapes articles from BeyondChats
+*  Stores in database
+*  Provides API endpoints
+
+
+### Run Article Updater
+
+*  Fetches latest article
+*  Searches Google for similar content
+*  Rewrites with AI
+*  Publishes updated version
+
+
+### View in React Frontend
+
+*  Browse all articles
+*  Filter by original/updated
+*  Read full articles
+*  See references and links
 
